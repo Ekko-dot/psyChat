@@ -81,7 +81,7 @@ class ChatRepositoryImpl @Inject constructor(
             // Call Anthropic API
             val request = AnthropicRequest(messages = anthropicMessages)
             val response = anthropicApi.sendMessage(
-                apiKey = "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", // Replace with your Anthropic API key
+                apiKey = com.psychat.app.BuildConfig.ANTHROPIC_API_KEY,
                 request = request
             )
             

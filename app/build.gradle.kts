@@ -48,6 +48,16 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        
+        // Load API keys from secrets.properties
+        val secretsFile = rootProject.file("secrets.properties")
+        if (secretsFile.exists()) {
+            val secrets = java.util.Properties()
+            secrets.load(secretsFile.inputStream())
+            buildConfigField("String", "ANTHROPIC_API_KEY", "\"${secrets["ANTHROPIC_API_KEY"]}\"")
+        } else {
+            buildConfigField("String", "ANTHROPIC_API_KEY", "\"\"")
+        }
     }
 
     buildTypes {

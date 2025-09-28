@@ -59,6 +59,12 @@ GoogleService-Info.plist
 *.log
 
 # ---------------------------------
+# API Keys & Secrets (CRITICAL - DO NOT COMMIT)
+secrets.properties
+api_keys.properties
+*.env
+
+# ---------------------------------
 # Others
 .DS_Store
 Thumbs.db
