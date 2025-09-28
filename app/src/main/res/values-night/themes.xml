@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme for dark theme. -->
+    <style name="Base.Theme.PsyChat" parent="Theme.Material3.Dark.NoActionBar">
+        <!-- Customize your dark theme here. -->
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/Purple80</item>
+        <item name="colorOnPrimary">@color/Purple40</item>
+        <item name="colorPrimaryContainer">@color/Purple40</item>
+        <item name="colorOnPrimaryContainer">@color/Purple80</item>
+    </style>
+</resources>
