@@ -16,7 +16,8 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
     
-    private const val ANTHROPIC_BASE_URL = "https://api.anthropic.com/"
+    // 使用代理服务而不是直接调用Anthropic API
+    private const val PROXY_BASE_URL = "https://psychat-anthropic-proxy.psychat.workers.dev/"
     
     @Provides
     @Singleton
@@ -37,7 +38,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(ANTHROPIC_BASE_URL)
+            .baseUrl(PROXY_BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

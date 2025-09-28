@@ -1,0 +1,20 @@
+name = "psychat-anthropic-proxy"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+
+# 环境变量配置
+[vars]
+ENVIRONMENT = "production"
+
+# 密钥配置 (通过 wrangler secret put 设置)
+# wrangler secret put ANTHROPIC_API_KEY
+
+# KV 存储 (可选，用于持久化限流)
+# [[kv_namespaces]]
+# binding = "RATE_LIMIT_KV"
+# id = "your-kv-namespace-id"
+
+# 自定义域名 (可选)
+# routes = [
+#   { pattern = "api.yourapp.com/chat", custom_domain = true }
+# ]

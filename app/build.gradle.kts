@@ -52,15 +52,9 @@ android {
             useSupportLibrary = true
         }
         
-        // Load API keys from secrets.properties
-        val secretsFile = rootProject.file("secrets.properties")
-        if (secretsFile.exists()) {
-            val secrets = Properties()
-            secrets.load(FileInputStream(secretsFile))
-            buildConfigField("String", "ANTHROPIC_API_KEY", "\"${secrets.getProperty("ANTHROPIC_API_KEY", "")}\"")
-        } else {
-            buildConfigField("String", "ANTHROPIC_API_KEY", "\"\"")
-        }
+        // 不再需要API密钥 - 使用代理服务
+        // buildConfigField("String", "PROXY_BASE_URL", "\"https://your-proxy-url.workers.dev/\"")
+        buildConfigField("String", "APP_VERSION", "\"${versionName}\"")
     }
 
     buildTypes {
