@@ -13,6 +13,7 @@ interface AnthropicApiService {
     suspend fun sendMessage(
         @Header("x-api-key") apiKey: String,
         @Header("anthropic-version") version: String = "2023-06-01",
+        @Header("content-type") contentType: String = "application/json",
         @Body request: AnthropicRequest
     ): Response<AnthropicResponse>
 }

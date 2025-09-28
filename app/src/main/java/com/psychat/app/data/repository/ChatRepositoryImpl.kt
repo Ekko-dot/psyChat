@@ -80,10 +80,24 @@ class ChatRepositoryImpl @Inject constructor(
             
             // Call Anthropic API
             val request = AnthropicRequest(messages = anthropicMessages)
+            Timber.d("Sending request to Anthropic API with ${anthropicMessages.size} messages")
+            
+            val apiKey = com.psychat.app.BuildConfig.ANTHROPIC_API_KEY
+            if (apiKey.isBlank()) {
+                Timber.e("API Key is empty! Check secrets.properties file.")
+                return Result.failure(Exception("API Key not configured"))
+            }
+            Timber.d("API Key configured: ${apiKey.take(10)}...")
+            
             val response = anthropicApi.sendMessage(
                 apiKey = com.psychat.app.BuildConfig.ANTHROPIC_API_KEY,
                 request = request
             )
+            
+            Timber.d("API Response: ${response.code()}, Success: ${response.isSuccessful}")
+            if (!response.isSuccessful) {
+                Timber.e("API Error Body: ${response.errorBody()?.string()}")
+            }
             
             if (response.isSuccessful && response.body() != null) {
                 val aiResponse = response.body()!!

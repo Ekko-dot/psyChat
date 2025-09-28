@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 // Version catalog for dependency management - 方案A稳态矩阵
 object Versions {
     // Compose生态 (与Kotlin 1.9.24对齐)
@@ -52,9 +55,9 @@ android {
         // Load API keys from secrets.properties
         val secretsFile = rootProject.file("secrets.properties")
         if (secretsFile.exists()) {
-            val secrets = java.util.Properties()
-            secrets.load(secretsFile.inputStream())
-            buildConfigField("String", "ANTHROPIC_API_KEY", "\"${secrets["ANTHROPIC_API_KEY"]}\"")
+            val secrets = Properties()
+            secrets.load(FileInputStream(secretsFile))
+            buildConfigField("String", "ANTHROPIC_API_KEY", "\"${secrets.getProperty("ANTHROPIC_API_KEY", "")}\"")
         } else {
             buildConfigField("String", "ANTHROPIC_API_KEY", "\"\"")
         }
