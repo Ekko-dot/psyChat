@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 data class AnthropicRequest(
     @SerializedName("model")
-    val model: String = "claude-3-sonnet-20240229",
+    val model: String = "claude-3-7-sonnet-20250219",
     @SerializedName("max_tokens")
     val maxTokens: Int = 1024,
     @SerializedName("messages")
