@@ -2,7 +2,9 @@ package com.psychat.app.ui.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.psychat.app.data.network.NetworkMonitor
 import com.psychat.app.data.repository.ChatRepository
+import com.psychat.app.data.sync.SyncScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -11,7 +13,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-    private val chatRepository: ChatRepository
+    private val chatRepository: ChatRepository,
+    private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(ChatUiState())

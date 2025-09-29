@@ -1,6 +1,7 @@
 package com.psychat.app.data.local
 
 import androidx.room.TypeConverter
+import com.psychat.app.domain.model.SyncStatus
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -18,5 +19,16 @@ class Converters {
         return dateTimeString?.let {
             LocalDateTime.parse(it, formatter)
         }
+    }
+    
+    // SyncStatus 转换器
+    @TypeConverter
+    fun fromSyncStatus(status: SyncStatus): String {
+        return status.name
+    }
+    
+    @TypeConverter
+    fun toSyncStatus(statusString: String): SyncStatus {
+        return SyncStatus.valueOf(statusString)
     }
 }

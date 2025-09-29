@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.psychat.app.data.local.PsyChatDatabase
 import com.psychat.app.data.local.dao.ConversationDao
 import com.psychat.app.data.local.dao.MessageDao
+import com.psychat.app.data.local.dao.SyncTaskDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,5 +37,10 @@ object DatabaseModule {
     @Provides
     fun provideConversationDao(database: PsyChatDatabase): ConversationDao {
         return database.conversationDao()
+    }
+    
+    @Provides
+    fun provideSyncTaskDao(database: PsyChatDatabase): SyncTaskDao {
+        return database.syncTaskDao()
     }
 }

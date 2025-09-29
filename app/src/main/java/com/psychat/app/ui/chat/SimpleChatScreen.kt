@@ -53,7 +53,7 @@ fun SimpleChatScreen(
     ) {
         // 标题
         Text(
-            text = "PsyChat - Step 3&4 测试",
+            text = "PsyChat",
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 16.dp)
         )

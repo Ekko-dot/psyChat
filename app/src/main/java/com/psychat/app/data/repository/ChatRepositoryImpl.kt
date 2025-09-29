@@ -2,9 +2,12 @@ package com.psychat.app.data.repository
 
 import com.psychat.app.data.local.dao.ConversationDao
 import com.psychat.app.data.local.dao.MessageDao
+import com.psychat.app.data.network.NetworkMonitor
 import com.psychat.app.data.remote.api.AnthropicApiService
+import com.psychat.app.data.sync.SyncService
 import com.psychat.app.data.remote.dto.AnthropicMessage
 import com.psychat.app.data.remote.dto.AnthropicRequest
+import com.psychat.app.domain.model.PayloadType
 import com.psychat.app.domain.model.Conversation
 import com.psychat.app.domain.model.Message
 import kotlinx.coroutines.flow.Flow
@@ -18,7 +21,9 @@ import javax.inject.Singleton
 class ChatRepositoryImpl @Inject constructor(
     private val messageDao: MessageDao,
     private val conversationDao: ConversationDao,
-    private val anthropicApi: AnthropicApiService
+    private val anthropicApi: AnthropicApiService,
+    private val networkMonitor: NetworkMonitor,
+    private val syncService: SyncService
 ) : ChatRepository {
     
     override fun observeMessages(conversationId: String): Flow<List<Message>> {
@@ -132,9 +137,27 @@ class ChatRepositoryImpl @Inject constructor(
         }
     }
     
-    // Step 3: 新增的简化方法实现
+    // Step 3: 新增的简化方法实现（支持离线排队）
     override suspend fun sendToModel(text: String, conversationId: String): String {
         try {
+            // 检查网络状态
+            if (!networkMonitor.isNetworkAvailable()) {
+                // 无网络时，创建同步任务排队
+                val messageData = mapOf(
+                    "text" to text,
+                    "conversationId" to conversationId,
+                    "timestamp" to LocalDateTime.now().toString()
+                )
+                
+                syncService.createSyncTask(
+                    payloadType = PayloadType.MESSAGE,
+                    payloadData = messageData
+                )
+                
+                Timber.d("Network unavailable, message queued for sync: $text")
+                throw Exception("网络不可用，消息已加入同步队列")
+            }
+            
             // 获取对话历史
             val messages = messageDao.getMessages(conversationId)
             val anthropicMessages = messages.map { message ->
@@ -181,7 +204,13 @@ class ChatRepositoryImpl @Inject constructor(
             isFromUser = true,
             timestamp = now,
             isVoiceInput = false,
-            isSynced = false
+            isSynced = false,
+            // Step 6: 新增字段
+            asrAudioPath = null,  // 用户文本消息无音频
+            tokensIn = text.length,  // 简单估算输入token
+            tokensOut = null,  // 用户消息无输出token
+            modelName = null,  // 用户消息不涉及模型
+            createdAt = now
         )
         
         messageDao.insertMessage(message)
@@ -198,7 +227,13 @@ class ChatRepositoryImpl @Inject constructor(
             isFromUser = false,
             timestamp = now,
             isVoiceInput = false,
-            isSynced = true
+            isSynced = true,
+            // Step 6: 新增字段
+            asrAudioPath = null,  // AI消息无音频
+            tokensIn = null,  // AI消息的输入token在用户消息中
+            tokensOut = text.length,  // 简单估算输出token
+            modelName = "claude-3-7-sonnet-20250219",  // 使用的模型名称
+            createdAt = now
         )
         
         messageDao.insertMessage(message)

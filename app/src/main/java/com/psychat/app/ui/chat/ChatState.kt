@@ -11,7 +11,10 @@ data class ChatState(
     val messages: List<Message> = emptyList(),
     val error: String? = null,
     val conversationId: String? = null,
-    val isTyping: Boolean = false
+    val isTyping: Boolean = false,
+    // Step 6: 新增网络状态
+    val isNetworkAvailable: Boolean = true,
+    val pendingSyncCount: Int = 0
 ) {
     /**
      * 是否有错误
