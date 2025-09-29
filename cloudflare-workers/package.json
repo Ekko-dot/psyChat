@@ -1,0 +1,31 @@
+{
+  "name": "psychat-cloudflare-workers",
+  "version": "2.0.0",
+  "description": "PsyChat Cloudflare Workers proxy with data collection",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "build": "echo 'No build step required'",
+    "db:init": "wrangler d1 execute psychat-logs --file=./schema.sql",
+    "db:migrate": "wrangler d1 migrations apply psychat-logs",
+    "logs": "wrangler tail",
+    "test": "echo 'Tests not implemented yet'"
+  },
+  "keywords": [
+    "cloudflare-workers",
+    "anthropic",
+    "chat",
+    "data-collection",
+    "privacy"
+  ],
+  "author": "PsyChat Team",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

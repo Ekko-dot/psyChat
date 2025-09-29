@@ -63,3 +63,16 @@ app/
 
 - 在`ChatRepositoryImpl.kt`中替换`YOUR_API_KEY`
 - 建议使用安全的密钥存储方案
+
+## work manager
+```text
+用户发送消息
+    ↓
+检查网络状态
+    ├─有网络→ 直接发送API
+    └─无网络→ 加入SyncTask队列
+         ↓
+    WorkManager监听网络
+         ↓
+    网络恢复→批量同步→清理任务
+```
