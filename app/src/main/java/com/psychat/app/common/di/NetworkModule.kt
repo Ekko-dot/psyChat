@@ -2,6 +2,7 @@ package com.psychat.app.common.di
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.psychat.app.data.network.NetworkMonitor
 import com.psychat.app.data.remote.api.AnthropicApiService
 import dagger.Module
 import dagger.Provides

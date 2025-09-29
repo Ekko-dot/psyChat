@@ -45,10 +45,13 @@ export const rateLimiter = {
           return { allowed: false, retryAfter };
         } else {
           // 增加计数
+          const remainingTime = windowSize - (now - windowStart);
+          const ttl = Math.max(60, remainingTime); // 确保TTL至少60秒
+          
           await env.RATE_LIMIT_KV.put(key, JSON.stringify({
             count: count + 1,
             windowStart: windowStart
-          }), { expirationTtl: windowSize - (now - windowStart) });
+          }), { expirationTtl: ttl });
           
           return { allowed: true, retryAfter: 0 };
         }

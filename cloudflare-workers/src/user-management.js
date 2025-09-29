@@ -103,73 +103,70 @@ async function generateUserHash(userId, timestamp) {
 /**
  * 删除用户数据（GDPR 删除权）
  */
-async function deleteUserData(env, userId) {
+async function deleteUserData(env, userId, verificationToken, clientIP) {
+  const timestamp = Math.floor(Date.now() / 1000);
+  
   if (!env.DB) {
     throw new Error('Database not configured');
   }
 
   try {
-    // 开始事务
-    await env.DB.prepare('BEGIN TRANSACTION').run();
-
     // 记录删除操作
     await env.DB.prepare(`
       INSERT INTO system_logs (log_id, level, message, user_id, timestamp, metadata)
-      VALUES (?, 'INFO', 'User data deletion requested', ?, ?, ?)
+      VALUES (?, 'INFO', 'User deletion started', ?, ?, ?)
     `).bind(
       crypto.randomUUID(),
       userId,
-      Math.floor(Date.now() / 1000),
-      JSON.stringify({ action: 'delete', reason: 'GDPR_request' })
+      timestamp,
+      JSON.stringify({ client_ip: clientIP, verification_token: verificationToken })
     ).run();
 
-    // 删除用户相关的所有数据
+    // 删除用户相关数据
     const deletionResults = {};
 
+    // 删除研究事件
+    const researchEventsResult = await env.DB.prepare(
+      'DELETE FROM research_events WHERE user_id = ?'
+    ).bind(userId).run();
+    deletionResults.research_events = researchEventsResult.changes;
+
+    // 删除使用统计
+    const usageStatsResult = await env.DB.prepare(
+      'DELETE FROM usage_stats WHERE user_id = ?'
+    ).bind(userId).run();
+    deletionResults.usage_stats = usageStatsResult.changes;
+
     // 删除消息
-    const messagesResult = await env.DB.prepare(`
-      DELETE FROM messages WHERE user_id = ?
-    `).bind(userId).run();
+    const messagesResult = await env.DB.prepare(
+      'DELETE FROM messages WHERE user_id = ?'
+    ).bind(userId).run();
     deletionResults.messages = messagesResult.changes;
 
     // 删除对话
-    const conversationsResult = await env.DB.prepare(`
-      DELETE FROM conversations WHERE user_id = ?
-    `).bind(userId).run();
+    const conversationsResult = await env.DB.prepare(
+      'DELETE FROM conversations WHERE user_id = ?'
+    ).bind(userId).run();
     deletionResults.conversations = conversationsResult.changes;
 
-    // 删除使用统计
-    const statsResult = await env.DB.prepare(`
-      DELETE FROM usage_stats WHERE user_id = ?
-    `).bind(userId).run();
-    deletionResults.usage_stats = statsResult.changes;
-
-    // 删除研究事件
-    const eventsResult = await env.DB.prepare(`
-      DELETE FROM research_events WHERE user_id = ?
-    `).bind(userId).run();
-    deletionResults.research_events = eventsResult.changes;
-
     // 删除用户记录
-    const userResult = await env.DB.prepare(`
-      DELETE FROM users WHERE user_id = ?
-    `).bind(userId).run();
+    const userResult = await env.DB.prepare(
+      'DELETE FROM users WHERE user_id = ?'
+    ).bind(userId).run();
     deletionResults.user = userResult.changes;
-
-    // 提交事务
-    await env.DB.prepare('COMMIT').run();
 
     // 记录删除完成
     await env.DB.prepare(`
-      INSERT INTO system_logs (log_id, level, message, timestamp, metadata)
-      VALUES (?, 'INFO', 'User data deletion completed', ?, ?)
+      INSERT INTO system_logs (log_id, level, message, user_id, timestamp, metadata)
+      VALUES (?, 'INFO', 'User deletion completed', ?, ?, ?)
     `).bind(
       crypto.randomUUID(),
-      Math.floor(Date.now() / 1000),
+      userId,
+      timestamp,
       JSON.stringify({ 
-        action: 'delete_completed',
-        user_id_hash: sanitizeData.hashString(userId),
-        deleted_records: deletionResults
+        client_ip: clientIP,
+        deletion_results: deletionResults,
+        total_records_deleted: Object.values(deletionResults).reduce((sum, count) => sum + count, 0)
       })
     ).run();
 
@@ -180,14 +177,12 @@ async function deleteUserData(env, userId) {
     };
 
   } catch (error) {
-    // 回滚事务
-    await env.DB.prepare('ROLLBACK').run();
+    console.error('Error in deleteUserData:', error);
     throw error;
   }
 }
 
 /**
- * 导出用户数据（GDPR 数据可携带权）
  */
 async function exportUserData(env, userId) {
   if (!env.DB) {

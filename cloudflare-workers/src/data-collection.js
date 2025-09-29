@@ -91,9 +91,6 @@ export async function processBatchData(env, data) {
   const errors = [];
 
   try {
-    // 开始事务
-    await env.DB.prepare('BEGIN TRANSACTION').run();
-
     // 1. 更新或创建用户记录
     await upsertUser(env, user_id, device_info, app_version, timestamp);
 
@@ -127,9 +124,6 @@ export async function processBatchData(env, data) {
       }
     }
 
-    // 提交事务
-    await env.DB.prepare('COMMIT').run();
-
     return {
       success: true,
       processed: processedCount,
@@ -138,8 +132,7 @@ export async function processBatchData(env, data) {
     };
 
   } catch (error) {
-    // 回滚事务
-    await env.DB.prepare('ROLLBACK').run();
+    console.error('Error in processBatchData:', error);
     throw error;
   }
 }
@@ -165,6 +158,8 @@ async function upsertUser(env, userId, deviceInfo, appVersion, timestamp) {
  * 处理消息数据
  */
 async function processMessage(env, userId, messageData, timestamp) {
+  console.log('Processing message data:', JSON.stringify(messageData, null, 2));
+  
   const {
     message_id,
     conversation_id,
@@ -179,9 +174,64 @@ async function processMessage(env, userId, messageData, timestamp) {
     error_message
   } = messageData;
 
+  // 详细日志每个字段
+  console.log('Field values:', {
+    message_id,
+    conversation_id,
+    userId,
+    content: content ? '[CONTENT]' : content,
+    is_from_user,
+    timestamp,
+    tokens_in,
+    tokens_out,
+    model_name,
+    is_voice_input,
+    asr_audio_path,
+    response_time_ms,
+    error_message
+  });
+
   // 内容哈希化（隐私保护）
   const contentHash = content ? hashContent(content) : null;
 
+  // 确保所有值都不是undefined
+  const safeValues = [
+    message_id || null,
+    conversation_id || null,
+    userId || null,
+    contentHash,
+    is_from_user !== undefined ? is_from_user : null,
+    timestamp || null,
+    tokens_in !== undefined ? tokens_in : null,
+    tokens_out !== undefined ? tokens_out : null,
+    model_name || null,
+    is_voice_input !== undefined ? is_voice_input : null,
+    asr_audio_path || null,
+    response_time_ms !== undefined ? response_time_ms : null,
+    error_message || null
+  ];
+
+  console.log('Safe values for DB:', safeValues);
+
+  // 先确保conversation存在
+  await env.DB.prepare(`
+    INSERT OR IGNORE INTO conversations (
+      conversation_id, user_id, title, created_at, updated_at,
+      message_count, total_tokens_in, total_tokens_out, is_archived
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    conversation_id || null,
+    userId || null,
+    'New Conversation',
+    timestamp || null,
+    timestamp || null,
+    0,
+    0,
+    0,
+    false
+  ).run();
+
+  // 然后插入消息（包含原始内容）
   await env.DB.prepare(`
     INSERT OR REPLACE INTO messages (
       message_id, conversation_id, user_id, content_hash, is_from_user,
@@ -189,9 +239,46 @@ async function processMessage(env, userId, messageData, timestamp) {
       asr_audio_path, response_time_ms, error_message
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
-    message_id, conversation_id, userId, contentHash, is_from_user,
-    timestamp, tokens_in, tokens_out, model_name, is_voice_input,
-    asr_audio_path, response_time_ms, error_message
+    message_id || null,
+    conversation_id || null,
+    userId || null,
+    content || null, // 直接存储原始内容而不是哈希
+    is_from_user !== undefined ? is_from_user : null,
+    timestamp || null,
+    tokens_in !== undefined ? tokens_in : null,
+    tokens_out !== undefined ? tokens_out : null,
+    model_name || null,
+    is_voice_input !== undefined ? is_voice_input : null,
+    asr_audio_path || null,
+    response_time_ms !== undefined ? response_time_ms : null,
+    error_message || null
+  ).run();
+
+  // 创建研究事件记录（每条消息都是一个研究事件）
+  // 使用message_id作为event_id来避免重复插入
+  const eventType = is_from_user ? 'user_message' : 'ai_response';
+  const eventData = {
+    message_id: message_id,
+    conversation_id: conversation_id,
+    content: content, // 添加原始聊天内容
+    content_features: JSON.parse(contentHash || '{}'),
+    tokens: is_from_user ? tokens_in : tokens_out,
+    model_name: model_name,
+    is_voice_input: is_voice_input,
+    response_time_ms: response_time_ms
+  };
+
+  await env.DB.prepare(`
+    INSERT OR IGNORE INTO research_events (
+      event_id, user_id, event_type, event_data, timestamp, session_id
+    ) VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(
+    message_id, // 使用message_id作为event_id，确保唯一性
+    userId,
+    eventType,
+    JSON.stringify(eventData),
+    timestamp,
+    conversation_id // 使用conversation_id作为session_id
   ).run();
 
   // 更新用户统计

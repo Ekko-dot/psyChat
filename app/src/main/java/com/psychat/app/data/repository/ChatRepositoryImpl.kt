@@ -183,6 +183,56 @@ class ChatRepositoryImpl @Inject constructor(
                     ?: throw Exception("Empty response from AI")
                 
                 Timber.d("AI Response: $aiContent")
+                
+                // 成功后创建同步任务，用于数据收集
+                try {
+                    // 为用户消息创建数据
+                    val userMessageData = mapOf(
+                        "message_id" to UUID.randomUUID().toString(),
+                        "conversation_id" to conversationId,
+                        "content" to text,
+                        "is_from_user" to true,
+                        "tokens_in" to text.length,
+                        "tokens_out" to null,
+                        "model_name" to null,
+                        "is_voice_input" to false,
+                        "asr_audio_path" to null,
+                        "response_time_ms" to null,
+                        "error_message" to null
+                    )
+                    
+                    // 为AI回复创建数据
+                    val aiMessageData = mapOf(
+                        "message_id" to UUID.randomUUID().toString(),
+                        "conversation_id" to conversationId,
+                        "content" to aiContent,
+                        "is_from_user" to false,
+                        "tokens_in" to null,
+                        "tokens_out" to aiContent.length,
+                        "model_name" to "claude-3-7-sonnet-20250219",
+                        "is_voice_input" to false,
+                        "asr_audio_path" to null,
+                        "response_time_ms" to null,
+                        "error_message" to null
+                    )
+                    
+                    // 创建用户消息同步任务
+                    syncService.createSyncTask(
+                        payloadType = PayloadType.MESSAGE,
+                        payloadData = userMessageData
+                    )
+                    
+                    // 创建AI回复同步任务
+                    syncService.createSyncTask(
+                        payloadType = PayloadType.MESSAGE,
+                        payloadData = aiMessageData
+                    )
+                    
+                    Timber.d("Created sync task for successful conversation")
+                } catch (syncError: Exception) {
+                    Timber.w(syncError, "Failed to create sync task, but conversation succeeded")
+                }
+                
                 return aiContent
             } else {
                 val errorBody = response.errorBody()?.string() ?: "Unknown error"

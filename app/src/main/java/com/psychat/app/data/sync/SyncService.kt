@@ -2,6 +2,7 @@ package com.psychat.app.data.sync
 
 import com.google.gson.Gson
 import com.psychat.app.data.local.dao.SyncTaskDao
+import com.psychat.app.data.network.NetworkMonitor
 import com.psychat.app.data.remote.api.AnthropicApiService
 import com.psychat.app.data.remote.dto.BatchSyncRequest
 import com.psychat.app.data.remote.dto.BatchItem
@@ -14,7 +15,9 @@ import com.psychat.app.domain.model.SyncTask
 import kotlinx.coroutines.flow.Flow
 import timber.log.Timber
 import java.time.LocalDateTime
+import com.psychat.app.data.sync.SyncScheduler
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,6 +30,7 @@ class SyncService @Inject constructor(
     private val syncTaskDao: SyncTaskDao,
     private val anthropicApi: AnthropicApiService,
     private val gson: Gson,
+    private val networkMonitor: NetworkMonitor,
     @ApplicationContext private val context: Context
 ) {
     
@@ -54,6 +58,16 @@ class SyncService @Inject constructor(
         
         syncTaskDao.insertSyncTask(syncTask)
         Timber.d("Created sync task: $taskId, type: $payloadType")
+        
+        // 立即触发一次性同步（如果有网络）
+        try {
+            if (networkMonitor.isNetworkAvailable()) {
+                SyncScheduler.scheduleOneTimeSync(context, 0, TimeUnit.SECONDS)
+                Timber.d("Triggered immediate sync for task: $taskId")
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to trigger immediate sync, will wait for periodic sync")
+        }
         
         return taskId
     }
