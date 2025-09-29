@@ -7,6 +7,10 @@ import retrofit2.http.Body
 import retrofit2.http.Header
 import retrofit2.http.POST
 
+/**
+ * Anthropic API服务接口
+ * 统一处理与代理服务的通信
+ */
 interface AnthropicApiService {
     
     @POST("chat")

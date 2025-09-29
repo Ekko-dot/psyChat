@@ -131,4 +131,78 @@ class ChatRepositoryImpl @Inject constructor(
             conversationDao.deleteConversation(conversation)
         }
     }
+    
+    // Step 3: 新增的简化方法实现
+    override suspend fun sendToModel(text: String, conversationId: String): String {
+        try {
+            // 获取对话历史
+            val messages = messageDao.getMessages(conversationId)
+            val anthropicMessages = messages.map { message ->
+                AnthropicMessage(
+                    role = if (message.isFromUser) "user" else "assistant",
+                    content = message.content
+                )
+            }.toMutableList()
+            
+            // 添加当前用户消息
+            anthropicMessages.add(AnthropicMessage(role = "user", content = text))
+            
+            // 构建请求
+            val request = AnthropicRequest(messages = anthropicMessages)
+            Timber.d("Sending to model: $text")
+            
+            // 调用API (使用统一的sendMessage方法)
+            val response = anthropicApi.sendMessage(request)
+            
+            if (response.isSuccessful && response.body() != null) {
+                val aiResponse = response.body()!!
+                val aiContent = aiResponse.content.firstOrNull()?.text 
+                    ?: throw Exception("Empty response from AI")
+                
+                Timber.d("AI Response: $aiContent")
+                return aiContent
+            } else {
+                val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                Timber.e("API Error: ${response.code()}, Body: $errorBody")
+                throw Exception("API Error: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to send to model")
+            throw e
+        }
+    }
+    
+    override suspend fun addLocalUserMessage(text: String, conversationId: String) {
+        val now = LocalDateTime.now()
+        val message = Message(
+            id = UUID.randomUUID().toString(),
+            conversationId = conversationId,
+            content = text,
+            isFromUser = true,
+            timestamp = now,
+            isVoiceInput = false,
+            isSynced = false
+        )
+        
+        messageDao.insertMessage(message)
+        conversationDao.incrementMessageCount(conversationId, now)
+        Timber.d("Added user message: $text")
+    }
+    
+    override suspend fun addLocalAiMessage(text: String, conversationId: String) {
+        val now = LocalDateTime.now()
+        val message = Message(
+            id = UUID.randomUUID().toString(),
+            conversationId = conversationId,
+            content = text,
+            isFromUser = false,
+            timestamp = now,
+            isVoiceInput = false,
+            isSynced = true
+        )
+        
+        messageDao.insertMessage(message)
+        conversationDao.incrementMessageCount(conversationId, now)
+        Timber.d("Added AI message: $text")
+    }
 }

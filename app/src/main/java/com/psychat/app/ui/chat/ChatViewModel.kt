@@ -17,6 +17,10 @@ class ChatViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
     
+    // Step 4: 新增的状态管理
+    private val _state = MutableStateFlow(ChatState())
+    val state: StateFlow<ChatState> = _state.asStateFlow()
+    
     private var currentConversationId: String? = null
     
     init {
@@ -55,10 +59,12 @@ class ChatViewModel @Inject constructor(
                 val conversationId = chatRepository.createConversation("新对话")
                 currentConversationId = conversationId
                 _uiState.update { it.copy(conversationId = conversationId) }
+                _state.update { it.copy(conversationId = conversationId) }
                 observeMessages(conversationId)
             } catch (e: Exception) {
                 Timber.e(e, "Failed to create conversation")
                 _uiState.update { it.copy(errorMessage = "创建对话失败") }
+                _state.update { it.copy(error = "创建对话失败") }
             }
         }
     }
@@ -75,9 +81,11 @@ class ChatViewModel @Inject constructor(
                 .catch { e ->
                     Timber.e(e, "Error observing messages")
                     _uiState.update { it.copy(errorMessage = "加载消息失败") }
+                    _state.update { it.copy(error = "加载消息失败") }
                 }
                 .collect { messages ->
                     _uiState.update { it.copy(messages = messages) }
+                    _state.update { it.copy(messages = messages, error = null) }
                 }
         }
     }
@@ -123,5 +131,61 @@ class ChatViewModel @Inject constructor(
                 _uiState.update { it.copy(isLoading = false) }
             }
         }
+    }
+    
+    // Step 4: 新增的简化发送方法 - 写本地 → 请求 → 写AI消息 → 更新state
+    fun send(text: String) {
+        val conversationId = currentConversationId ?: return
+        
+        if (text.isBlank()) return
+        
+        viewModelScope.launch {
+            try {
+                // 1. 更新loading状态
+                _state.update { 
+                    it.copy(
+                        loading = true, 
+                        error = null,
+                        isTyping = true
+                    ) 
+                }
+                
+                // 2. 写本地用户消息
+                chatRepository.addLocalUserMessage(text, conversationId)
+                Timber.d("Added local user message: $text")
+                
+                // 3. 请求AI回复
+                val aiResponse = chatRepository.sendToModel(text, conversationId)
+                Timber.d("Got AI response: $aiResponse")
+                
+                // 4. 写AI消息到本地
+                chatRepository.addLocalAiMessage(aiResponse, conversationId)
+                Timber.d("Added local AI message")
+                
+                // 5. 清除loading状态
+                _state.update { 
+                    it.copy(
+                        loading = false,
+                        isTyping = false,
+                        error = null
+                    ) 
+                }
+                
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to send message: $text")
+                _state.update { 
+                    it.copy(
+                        loading = false,
+                        isTyping = false,
+                        error = "发送消息失败: ${e.message}"
+                    ) 
+                }
+            }
+        }
+    }
+    
+    // 清除错误状态
+    fun clearError() {
+        _state.update { it.copy(error = null) }
     }
 }

@@ -10,7 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.psychat.app.ui.chat.ChatScreen
+import com.psychat.app.ui.chat.SimpleChatScreen
 import com.psychat.app.ui.theme.PsyChatTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -29,7 +29,8 @@ class MainActivity : ComponentActivity() {
                             .padding(innerPadding),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        ChatScreen()
+                        // Step 3&4 测试界面
+                        SimpleChatScreen()
                     }
                 }
             }
