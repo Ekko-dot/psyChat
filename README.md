@@ -74,7 +74,8 @@ app/
          ↓
     WorkManager监听网络
          ↓
+
     网络恢复→批量同步→清理任务
 ```
 
-![img.png](img.png)
+<img width="270" height="594" alt="截屏2025-09-29 13 43 40" src="https://github.com/user-attachments/assets/a61c62d6-9503-41b7-bde7-1ceb869061d8" />
