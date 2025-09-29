@@ -1,5 +1,7 @@
 package com.psychat.app.common.di
 
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.psychat.app.data.remote.api.AnthropicApiService
 import dagger.Module
 import dagger.Provides
@@ -21,6 +23,14 @@ object NetworkModule {
     
     @Provides
     @Singleton
+    fun provideGson(): Gson {
+        return GsonBuilder()
+            .setLenient()
+            .create()
+    }
+    
+    @Provides
+    @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -36,11 +46,11 @@ object NetworkModule {
     
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+    fun provideRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit {
         return Retrofit.Builder()
             .baseUrl(PROXY_BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
     
