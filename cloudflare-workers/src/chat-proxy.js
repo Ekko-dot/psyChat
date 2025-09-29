@@ -46,12 +46,15 @@ export async function handleChatRequest(request, env, clientIP) {
     const responseData = await response.json();
     
     // 记录API调用（用于统计）
-    if (env.DB) {
-      try {
+    try {
+      if (env.DB) {
         await logApiCall(env, clientIP, requestData, responseData);
-      } catch (logError) {
-        console.error('Failed to log API call:', logError);
+      } else {
+        console.log('Database not available, skipping API call logging');
       }
+    } catch (logError) {
+      console.error('Failed to log API call:', logError);
+      // 继续执行，不影响主要功能
     }
 
     return new Response(JSON.stringify(responseData), {
@@ -77,25 +80,54 @@ export async function handleChatRequest(request, env, clientIP) {
 async function logApiCall(env, clientIP, request, response) {
   const timestamp = Math.floor(Date.now() / 1000);
   
-  // 计算token使用量
-  const tokensIn = estimateTokens(JSON.stringify(request.messages));
-  const tokensOut = response.usage?.output_tokens || estimateTokens(JSON.stringify(response.content));
-  
-  // 记录到系统日志
-  await env.DB.prepare(`
-    INSERT INTO system_logs (log_id, level, message, timestamp, metadata)
-    VALUES (?, 'INFO', 'API call', ?, ?)
-  `).bind(
-    crypto.randomUUID(),
-    timestamp,
-    JSON.stringify({
+  try {
+    // 首先检查数据库连接和表是否存在
+    console.log('Testing database connection...');
+    const testResult = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='system_logs'").first();
+    console.log('Table check result:', testResult);
+    
+    if (!testResult) {
+      console.error('system_logs table does not exist');
+      return;
+    }
+    
+    // 计算token使用量
+    const tokensIn = estimateTokens(JSON.stringify(request.messages));
+    const tokensOut = response.usage?.output_tokens || estimateTokens(JSON.stringify(response.content));
+    
+    // 记录到系统日志
+    const logId = crypto.randomUUID();
+    const metadata = JSON.stringify({
       client_ip: clientIP.substring(0, 10) + 'xxx', // IP脱敏
       tokens_in: tokensIn,
       tokens_out: tokensOut,
       model: request.model || 'claude-3-7-sonnet-20250219',
       response_time: Date.now() - (timestamp * 1000)
-    })
-  ).run();
+    });
+    
+    console.log('Attempting to insert log:', { logId, timestamp, metadata });
+    
+    const result = await env.DB.prepare(`
+      INSERT INTO system_logs (log_id, level, message, timestamp, metadata)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(
+      logId,
+      'INFO',
+      'API call',
+      timestamp,
+      metadata
+    ).run();
+    
+    console.log('Insert result:', result);
+    
+  } catch (error) {
+    console.error('Detailed logApiCall error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    throw error;
+  }
 }
 
 /**

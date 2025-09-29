@@ -92,7 +92,9 @@ export default {
       
       // 记录系统错误到 D1
       try {
-        await logSystemError(env, error, clientIP, path);
+        if (env.DB) {
+          await logSystemError(env, error, clientIP, path);
+        }
       } catch (logError) {
         console.error('Failed to log error:', logError);
       }
